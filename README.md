@@ -18,6 +18,7 @@ This adds a welding tool which does not require an entity to be unfreezed, allow
 
 - **Weld Graph**: View all welds and modify them in a convenient graph
 - **(TODO) GMod save or duplicator support**: Ragdoll welds will persist between saves and dupes.
+- **(TODO) Bone constraints**: Ragdoll welds can either follow a physical bone or a nonphysical bone.
 
 ### Rational
 

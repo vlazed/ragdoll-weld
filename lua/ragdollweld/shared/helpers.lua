@@ -48,17 +48,28 @@ local function physBoneToBone(ent, physBone)
 end
 helpers.physBoneToBone = physBoneToBone
 
+---@type {[string]: {[integer]: integer}}
+local boneToPhysMap = {}
+
 ---@source https://github.com/Winded/RagdollMover/blob/a761e5618e9cba3440ad88d44ee1e89252d72826/lua/autorun/ragdollmover.lua#L201
 ---@param ent Entity Entity to translate bone
 ---@param bone integer Bone id
 ---@return integer physBone Physics object id
 local function boneToPhysBone(ent, bone)
-	for i = 0, ent:GetPhysicsObjectCount() - 1 do
-		local b = ent:TranslatePhysBoneToBone(i)
-		if bone == b then
-			return i
+	local model = ent:GetModel()
+	if boneToPhysMap[model] and boneToPhysMap[model][bone] then
+		return boneToPhysMap[model][bone]
+	else
+		boneToPhysMap[model] = boneToPhysMap[model] or {}
+		for i = 0, ent:GetPhysicsObjectCount() - 1 do
+			local b = ent:TranslatePhysBoneToBone(i)
+			if bone == b then
+				boneToPhysMap[model][b] = i
+				return i
+			end
 		end
 	end
+
 	return -1
 end
 helpers.boneToPhysBone = boneToPhysBone

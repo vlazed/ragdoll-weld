@@ -1,4 +1,4 @@
-TOOL.Category = "Posing"
+TOOL.Category = "Poser"
 TOOL.Name = "#tool.ragdollweld.name"
 TOOL.Command = nil
 TOOL.ConfigName = ""

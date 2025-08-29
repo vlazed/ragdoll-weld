@@ -28,7 +28,7 @@ function TOOL:Reload(tr)
 
 	RagdollWeld.State:removeEntity(entity)
 
-	return true
+	return RagdollWeld.RemoveWeld(entity)
 end
 
 function TOOL:Holster()
@@ -77,8 +77,7 @@ function TOOL:LeftClick(tr)
 		local targetEntity, outgoing = self:GetEnt(1), self:GetEnt(2)
 
 		if RagdollWeld.State:validateEntity(targetEntity, outgoing) then
-			local outgoingBone = self:GetBone(2)
-			RagdollWeld.State:addEntity(targetEntity, outgoing)
+			RagdollWeld.AddWeld(targetEntity, outgoing)
 		else
 			ply:SendLua('notification.AddLegacy("Weld failed: attempted to create a cycle.", NOTIFY_ERROR, 3)')
 		end

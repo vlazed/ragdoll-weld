@@ -52,6 +52,7 @@ local function dataDisplay(cPanel)
 	container.update:SetTooltip("Update position and angle offsets")
 	container.phys = container:CheckBox("Use Physical Bone", "")
 	container.id = container:NumberWang("Bone Id", "", 0, 256)
+	container.id:SetTooltipDelay(0)
 	container.updating = container:CheckBox("Should update", "")
 	container.updating:SetTooltip(
 		"Whether the selected entity should move with respect to its welded entity. Uncheck this to properly update offsets."
@@ -77,10 +78,6 @@ function ui.ConstructPanel(cPanel, panelProps, panelState)
 	}
 end
 
-local function validate(ent)
-	return not ent:IsWorld() and not ent:IsPlayer() and IsValid(ent) and ent:GetModel()
-end
-
 local RED = Color(255, 0, 0)
 local GREEN = Color(0, 255, 0)
 
@@ -101,6 +98,12 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		end
 	end
 
+	---@param entity Entity
+	---@param id integer
+	local function updateLabel(entity, id)
+		data.id:SetTooltip(entity:GetBoneName(id))
+	end
+
 	local filling = false
 	---@param entity Entity
 	local function fillData(entity)
@@ -112,6 +115,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 			data.pos:SetValue(tostring(arcData.pos))
 			data.ang:SetValue(tostring(arcData.ang))
 			data.id:SetValue(arcData.id)
+			updateLabel(arcData.outgoing, arcData.id)
 			data.phys:SetChecked(arcData.phys)
 			data.updating:SetChecked(arcData.updating)
 		else
@@ -120,16 +124,24 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 			data.pos:SetValue("")
 			data.ang:SetValue("")
 			data.id:SetValue(0)
+			updateLabel(entity, 0)
 			data.phys:SetChecked(false)
 			data.updating:SetChecked(false)
 		end
 		filling = false
 	end
 
-	local function update(data)
+	local function update(newData, updateClicked)
 		net.Start("ragdollweld_updatemodel")
-		net.WriteTable(data)
+		net.WriteTable(newData)
+		net.WriteBool(updateClicked)
 		net.SendToServer()
+	end
+
+	function data.update:DoClick()
+		if data.data then
+			update(data.data, true)
+		end
 	end
 
 	function data.updating:OnChange(checked)
@@ -142,7 +154,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	function data.phys:OnChange(checked)
 		if data.data then
 			data.data.phys = checked
-			update(data.data)
+			update(data.data, true)
 		end
 	end
 
@@ -151,6 +163,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 			return
 		end
 		if data.data then
+			updateLabel(data.data.outgoing, val)
 			data.data.id = val
 			update(data.data)
 		end
@@ -173,7 +186,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 			local outgoingArc = outgoing.entity
 			if hover then
 				highlighter.highlights[outgoingArc] = GREEN
-				highlighter.connections[entity] = { entity, outgoingArc }
+				highlighter.connections[entity] = { entity, outgoingArc, data.data and data.data.id or 0 }
 			else
 				highlighter.highlights[outgoingArc] = nil
 			end
@@ -185,11 +198,12 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 
 	net.Receive("ragdollweld_updateview", function(len, ply)
 		local entities = net.ReadTable()
-		PrintTable(entities)
-		explorer.graph:ClearNodes()
+		local updateGraph = net.ReadBool()
 
 		panelState.entities = entities
-		refreshGraph(entities)
+		if updateGraph then
+			refreshGraph(entities)
+		end
 	end)
 end
 

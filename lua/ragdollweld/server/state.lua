@@ -1,6 +1,6 @@
 ---@module "ragdollweld.shared.helpers"
 local helpers = include("ragdollweld/shared/helpers.lua")
-local getPhysBoneParent = helpers.getPhysBoneParent
+local getPhysBoneParent, boneToPhysBone = helpers.getPhysBoneParent, helpers.boneToPhysBone
 
 ---@class RagdollWeldState
 ---@field entities ArcData[]
@@ -32,6 +32,25 @@ local function getIncomingArcs(entities, node)
 	return incomingArcs
 end
 
+---@param entities ArcData[]
+---@param updateGraph boolean
+local function updateView(entities, updateGraph)
+	---@type ArcData[]
+	local copy = table.Copy(entities)
+	print("Before")
+	PrintTable(copy)
+	for _, entry in pairs(copy) do
+		entry.offsetData = nil
+		entry.incoming = nil
+	end
+	print("After")
+	PrintTable(copy)
+	net.Start("ragdollweld_updateview")
+	net.WriteTable(copy)
+	net.WriteBool(updateGraph)
+	net.Broadcast()
+end
+
 ---@param entity Entity
 ---@return OffsetData[]
 local function getOffset(entity)
@@ -53,25 +72,50 @@ local function getOffset(entity)
 	return offsetData
 end
 
+---@param entity Entity
+---@param outgoing Entity
+---@param phys boolean
+---@param id integer
+---@return Vector, Angle
+local function getPosAng(entity, outgoing, phys, id)
+	local root = entity:GetPhysicsObject()
+
+	local pos, ang
+	if phys then
+		local outgoingObject = outgoing:GetPhysicsObject()
+		local physId = boneToPhysBone(outgoing, id)
+		if outgoing:GetPhysicsObjectCount() > 1 then
+			outgoingObject = outgoing:GetPhysicsObjectNum(physId) or outgoingObject
+		end
+		pos, ang = WorldToLocal(root:GetPos(), root:GetAngles(), outgoingObject:GetPos(), outgoingObject:GetAngles())
+	else
+		local bonePos, boneAng = outgoing:GetBonePosition(id)
+		pos, ang = WorldToLocal(root:GetPos(), root:GetAngles(), bonePos, boneAng)
+	end
+
+	return pos, ang
+end
+
 ---@param state RagdollWeldState
 ---@param entity Entity
 ---@param outgoingArc Entity
----@param index integer
-local function addEntity(state, entity, outgoingArc, index)
-	local root = entity:GetPhysicsObject()
-	local outgoingRoot = outgoingArc:GetPhysicsObject()
-	local pos, ang = WorldToLocal(root:GetPos(), root:GetAngles(), outgoingRoot:GetPos(), outgoingRoot:GetAngles())
-	state.entities[index] = {
+local function addEntity(state, entity, outgoingArc, data)
+	local phys = Either(data, data and data.phys, true)
+	local id = data and data.id or 0
+
+	local pos, ang = getPosAng(entity, outgoingArc, phys, id)
+	local data = {
 		entity = entity,
 		outgoing = outgoingArc,
 		incoming = getIncomingArcs(state.entities, entity),
 		pos = pos,
 		ang = ang,
-		phys = true,
-		id = 0,
+		phys = phys,
+		id = id,
 		updating = true,
 		offsetData = getOffset(entity),
 	}
+	state.entities[entity:EntIndex()] = data
 	state.entityCount = state.entityCount + 1
 end
 
@@ -104,17 +148,39 @@ end
 
 ---@param index integer
 ---@param data ArcData
-function RagdollWeld.State:updateEntity(index, data)
+---@param offsetUpdate boolean
+function RagdollWeld.State:updateEntity(index, data, offsetUpdate)
 	if not self.entities[index] then
 		return
 	end
 	local arcData = self.entities[index]
 
-	arcData.ang = data.ang
-	arcData.pos = data.pos
-	arcData.id = data.id
+	local updateOffsets = offsetUpdate or arcData.id ~= data.id or arcData.phys ~= data.phys
+
 	arcData.phys = data.phys
 	arcData.updating = data.updating
+	arcData.id = data.id
+
+	if offsetUpdate then
+		arcData.offsetData = getOffset(arcData.entity)
+	end
+
+	if updateOffsets then
+		arcData.pos, arcData.ang = getPosAng(arcData.entity, arcData.outgoing, arcData.phys, arcData.id)
+	end
+
+	self.entities[index] = arcData
+
+	print("Update")
+
+	arcData.entity.ragdollweld_constraint:SetTable({
+		Type = "RagdollWeld",
+		Ent1 = arcData.entity,
+		Ent2 = arcData.outgoing,
+		Data = arcData,
+	})
+
+	updateView(self.entities, false)
 end
 
 function RagdollWeld.State:validateEntity(entity, outgoingEntity)
@@ -125,30 +191,24 @@ function RagdollWeld.State:updateCount()
 	self.previousCount = self.entityCount
 end
 
----@param entities ArcData[]
-local function updateView(entities)
-	---@type ArcData[]
-	local copy = table.Copy(entities)
-	for _, entry in pairs(copy) do
-		entry.offsetData = nil
-		entry.incoming = nil
-	end
-	net.Start("ragdollweld_updateview")
-	net.WriteTable(copy)
-	net.Broadcast()
-end
-
 ---@param entity Entity
-function RagdollWeld.State:addEntity(entity, outgoingArc)
+---@param outgoingArc Entity
+function RagdollWeld.State:addEntity(entity, outgoingArc, data)
 	local entIndex = entity:EntIndex()
 	if not self.entities[entIndex] then
-		addEntity(self, entity, outgoingArc, entIndex)
+		addEntity(self, entity, outgoingArc, data)
 		entity:CallOnRemove("ragdollweld_cleanup", function()
 			removeEntity(self, entIndex)
 			clearIncomingArcs(self.entities, entity)
+			updateView(self.entities, true)
+		end)
+		outgoingArc:CallOnRemove("ragdollweld_cleanup", function()
+			removeEntity(self, outgoingArc:EntIndex())
+			clearIncomingArcs(self.entities, outgoingArc)
+			updateView(self.entities, true)
 		end)
 
-		updateView(self.entities)
+		updateView(self.entities, true)
 	end
 end
 
@@ -159,17 +219,59 @@ function RagdollWeld.State:removeEntity(entity)
 		removeEntity(self, entIndex)
 		clearIncomingArcs(self.entities, entity)
 		entity:RemoveCallOnRemove("ragdollweld_cleanup")
-		updateView(self.entities)
+		updateView(self.entities, true)
 	end
+end
+
+---@param ent1 Entity
+---@param ent2 Entity
+function RagdollWeld.AddWeld(ent1, ent2, data)
+	if not IsValid(ent1) then
+		return
+	end
+	if not IsValid(ent2) then
+		return
+	end
+
+	RagdollWeld.State:addEntity(ent1, ent2, data)
+
+	local anchor = constraint.CreateStaticAnchorPoint(ent2:GetPos())
+
+	constraint.AddConstraintTable(ent1, anchor, ent2)
+
+	anchor:SetTable({
+		Type = "RagdollWeld",
+		Ent1 = ent1,
+		Ent2 = ent2,
+		Data = data,
+	})
+
+	ent1.ragdollweld_constraint = anchor
+
+	return anchor
+end
+
+duplicator.RegisterConstraint("RagdollWeld", RagdollWeld.AddWeld, "Ent1", "Ent2", "Data")
+
+---@param ent Entity
+function RagdollWeld.RemoveWeld(ent)
+	if not IsValid(ent) then
+		return false
+	end
+
+	RagdollWeld.State:removeEntity(ent)
+
+	return constraint.RemoveConstraints(ent, "RagdollWeld")
 end
 
 net.Receive("ragdollweld_updatemodel", function(len, ply)
 	---@type ArcData
 	local data = net.ReadTable()
+	local offsetUpdate = net.ReadBool()
 	local entity = data.entity
-	RagdollWeld.State:updateEntity(entity:EntIndex(), data)
+	RagdollWeld.State:updateEntity(entity:EntIndex(), data, offsetUpdate)
 end)
 
 net.Receive("ragdollweld_updateview", function(len, ply)
-	updateView(RagdollWeld.State.entities)
+	updateView(RagdollWeld.State.entities, true)
 end)

@@ -26,7 +26,7 @@ function PANEL:Init()
 	self.pos = Vector()
 
 	self.color = self:GetSkin().Colours.Label.Dark
-	self.icon:SetColor(color)
+	self.icon:SetColor(self.color)
 
 	function self.icon.DoClick()
 		self:OnSelected()
@@ -39,7 +39,7 @@ function PANEL:Init()
 		self:OnHover(false)
 	end
 
-	self:SetBackgroundColor(color)
+	self:SetBackgroundColor(self.color)
 end
 
 function PANEL:OnHover(hovering) end
@@ -124,6 +124,10 @@ end
 ---@param entity Entity
 ---@param outgoingArc Entity
 function PANEL:AddEntity(entity, outgoingArc)
+	if not IsValid(entity) or not IsValid(outgoingArc) then
+		return
+	end
+
 	local node = self.nodes[entity:EntIndex()]
 	if not node then
 		node = createNode(self, entity)

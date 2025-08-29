@@ -1,6 +1,6 @@
 ---@module "ragdollweld.shared.helpers"
 local helpers = include("ragdollweld/shared/helpers.lua")
-local ipairs_sparse = helpers.ipairs_sparse
+local ipairs_sparse, boneToPhysBone = helpers.ipairs_sparse, helpers.boneToPhysBone
 
 local state = RagdollWeld.State
 
@@ -17,17 +17,24 @@ local function system()
 		local offsetData = arcEntity.offsetData
 		local physcount = entity:GetPhysicsObjectCount()
 
+		if not IsValid(entity) or not IsValid(outgoing) then
+			continue
+		end
+
 		local fPos, fAng
 		local calculatePhysics
 		if arcEntity.phys then
-			local physId = outgoing:TranslateBoneToPhysBone(id)
-			if physId then
+			local physId = boneToPhysBone(outgoing, id)
+			if physId >= 0 then
 				calculatePhysics = physId
 			end
 		end
 
 		if calculatePhysics then
-			local physObj = outgoing:GetPhysicsObjectNum(calculatePhysics)
+			local physObj = outgoing:GetPhysicsObject()
+			if outgoing:GetPhysicsObjectCount() > 1 then
+				physObj = outgoing:GetPhysicsObjectNum(calculatePhysics)
+			end
 			fPos, fAng = LocalToWorld(arcEntity.pos, arcEntity.ang, physObj:GetPos(), physObj:GetAngles())
 		else
 			local bPos, bAng = outgoing:GetBonePosition(id)

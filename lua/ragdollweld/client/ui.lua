@@ -102,6 +102,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	---@param id integer
 	local function updateLabel(entity, id)
 		data.id:SetTooltip(entity:GetBoneName(id))
+		data.id:SetMinMax(0, math.max(entity:GetBoneCount() - 1, 0))
 	end
 
 	local filling = false
@@ -203,6 +204,8 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		panelState.entities = entities
 		if updateGraph then
 			refreshGraph(entities)
+		elseif data.data then
+			fillData(data.data.entity)
 		end
 	end)
 end

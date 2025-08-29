@@ -1,4 +1,4 @@
-TOOL.Category = "Render"
+TOOL.Category = "Posing"
 TOOL.Name = "#tool.ragdollweld.name"
 TOOL.Command = nil
 TOOL.ConfigName = ""
@@ -35,6 +35,19 @@ function TOOL:Holster()
 	self:ClearObjects()
 end
 
+local function canTool(ent, pl)
+	local cantool
+
+	---@diagnostic disable-next-line
+	if CPPI and ent.CPPICanTool then
+		cantool = ent:CPPICanTool(pl, "ragdollmover")
+	else
+		cantool = true
+	end
+
+	return cantool
+end
+
 ---Select an entity to target, and then select another entity to set its arc it.
 ---@param tr table|TraceResult
 ---@return boolean
@@ -44,6 +57,9 @@ function TOOL:LeftClick(tr)
 		return false
 	end
 	if SERVER and not util.IsValidPhysicsObject(entity, tr.PhysicsBone) then
+		return false
+	end
+	if not canTool(entity, self:GetOwner()) then
 		return false
 	end
 
@@ -77,7 +93,11 @@ function TOOL:LeftClick(tr)
 		local targetEntity, outgoing = self:GetEnt(1), self:GetEnt(2)
 
 		if RagdollWeld.State:validateEntity(targetEntity, outgoing) then
-			RagdollWeld.AddWeld(targetEntity, outgoing)
+			RagdollWeld.AddWeld(
+				targetEntity,
+				outgoing,
+				{ phys = true, id = outgoing:TranslatePhysBoneToBone(tr.PhysicsBone) }
+			)
 		else
 			ply:SendLua('notification.AddLegacy("Weld failed: attempted to create a cycle.", NOTIFY_ERROR, 3)')
 		end

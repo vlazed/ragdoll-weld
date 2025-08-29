@@ -37,14 +37,10 @@ end
 local function updateView(entities, updateGraph)
 	---@type ArcData[]
 	local copy = table.Copy(entities)
-	print("Before")
-	PrintTable(copy)
 	for _, entry in pairs(copy) do
 		entry.offsetData = nil
 		entry.incoming = nil
 	end
-	print("After")
-	PrintTable(copy)
 	net.Start("ragdollweld_updateview")
 	net.WriteTable(copy)
 	net.WriteBool(updateGraph)
@@ -117,6 +113,8 @@ local function addEntity(state, entity, outgoingArc, data)
 	}
 	state.entities[entity:EntIndex()] = data
 	state.entityCount = state.entityCount + 1
+
+	return data
 end
 
 ---@param state RagdollWeldState
@@ -209,6 +207,8 @@ function RagdollWeld.State:addEntity(entity, outgoingArc, data)
 		end)
 
 		updateView(self.entities, true)
+
+		return data
 	end
 end
 
@@ -233,7 +233,7 @@ function RagdollWeld.AddWeld(ent1, ent2, data)
 		return
 	end
 
-	RagdollWeld.State:addEntity(ent1, ent2, data)
+	local data = RagdollWeld.State:addEntity(ent1, ent2, data)
 
 	local anchor = constraint.CreateStaticAnchorPoint(ent2:GetPos())
 

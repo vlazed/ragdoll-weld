@@ -25,7 +25,7 @@ function PANEL:Init()
 	self.force = Vector()
 	self.pos = Vector()
 
-	self.color = self:GetSkin().Colours.Label.Dark
+	self.color = ColorAlpha(self:GetSkin().Colours.Label.Dark, 128)
 	self.icon:SetColor(self.color)
 
 	function self.icon.DoClick()

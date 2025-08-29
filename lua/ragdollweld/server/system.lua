@@ -4,7 +4,20 @@ local ipairs_sparse, boneToPhysBone = helpers.ipairs_sparse, helpers.boneToPhysB
 
 local state = RagdollWeld.State
 
+local updateAllConVar = CreateConVar(
+	"sv_ragdollweld_update",
+	"1",
+	FCVAR_SPONLY,
+	"Whether the system should actively constrain entities or not",
+	0,
+	1
+)
+
 local function system()
+	if not updateAllConVar:GetBool() then
+		return
+	end
+
 	for _, arcEntity in ipairs_sparse(state.entities, "ragdollweld_system", state.entityCount ~= state.previousCount) do
 		if not arcEntity.updating then
 			continue

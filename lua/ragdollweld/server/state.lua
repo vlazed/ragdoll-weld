@@ -282,11 +282,13 @@ end
 
 hook.Remove("OnEntityCreated", "ragdollweld_cleanup")
 hook.Add("OnEntityCreated", "ragdollweld_cleanup", function(ent)
-	if ent.Type == "RagdollWeld" then
-		if not ent.Ent1 and not ent.Ent2 then
-			ent:Remove()
+	timer.Simple(0, function()
+		if IsValid(ent) and ent.Type == "RagdollWeld" then
+			if not ent.Ent1 and not ent.Ent2 then
+				ent:Remove()
+			end
 		end
-	end
+	end)
 end)
 
 duplicator.RegisterConstraint("RagdollWeld", RagdollWeld.AddWeld, "Ent1", "Ent2", "Data")

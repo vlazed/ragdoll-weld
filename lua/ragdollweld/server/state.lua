@@ -219,6 +219,7 @@ end
 
 ---@param entity Entity
 ---@param outgoingArc Entity
+---@return any
 function RagdollWeld.State:addEntity(entity, outgoingArc, data)
 	local entIndex = entity:EntIndex()
 	if not self.entities[entIndex] then
@@ -278,6 +279,15 @@ function RagdollWeld.AddWeld(ent1, ent2, data)
 
 	return anchor
 end
+
+hook.Remove("OnEntityCreated", "ragdollweld_cleanup")
+hook.Add("OnEntityCreated", "ragdollweld_cleanup", function(ent)
+	if ent.Type == "RagdollWeld" then
+		if not ent.Ent1 and not ent.Ent2 then
+			ent:Remove()
+		end
+	end
+end)
 
 duplicator.RegisterConstraint("RagdollWeld", RagdollWeld.AddWeld, "Ent1", "Ent2", "Data")
 

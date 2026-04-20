@@ -2,6 +2,8 @@
 local helpers = include("ragdollweld/shared/helpers.lua")
 local getPhysBoneParent, boneToPhysBone = helpers.getPhysBoneParent, helpers.boneToPhysBone
 
+local EPSILON = 1e-6
+
 ---@class RagdollWeldState
 ---@field entities ArcData[]
 RagdollWeld.State = {
@@ -144,6 +146,20 @@ local function checkOutgoingCycle(entities, outgoingEntity, targetEntity)
 	end
 end
 
+---@param u Vector
+---@param v Vector
+---@return boolean
+local function vectorChanged(u, v)
+	return u:DistToSqr(v) > EPSILON
+end
+
+---@param a Angle
+---@param b Angle
+---@return boolean
+local function angleChanged(a, b)
+	return not a:IsEqualTol(b, EPSILON)
+end
+
 ---@param index integer
 ---@param data ArcData
 ---@param offsetUpdate boolean
@@ -154,6 +170,7 @@ function RagdollWeld.State:updateEntity(index, data, offsetUpdate)
 	local arcData = self.entities[index]
 
 	local updateOffsets = offsetUpdate or arcData.id ~= data.id or arcData.phys ~= data.phys
+	local updatePos, updateAng = vectorChanged(arcData.pos, data.pos), angleChanged(arcData.ang, data.ang)
 
 	arcData.phys = data.phys
 	arcData.updating = data.updating
@@ -166,6 +183,17 @@ function RagdollWeld.State:updateEntity(index, data, offsetUpdate)
 	if updateOffsets then
 		arcData.pos, arcData.ang = getPosAng(arcData.entity, arcData.outgoing, arcData.phys, arcData.id)
 	end
+
+	-- print(updatePos)
+	-- print(data.pos, data.ang)
+	-- print(arcData.pos, arcData.ang)
+	if updatePos then
+		arcData.pos = data.pos
+	end
+	if updateAng then
+		arcData.ang = data.ang
+	end
+	print(arcData.pos, arcData.ang)
 
 	self.entities[index] = arcData
 

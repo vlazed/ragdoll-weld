@@ -48,6 +48,9 @@ local function dataDisplay(cPanel)
 	container.label = container:Help("No entity selected")
 	container.pos = container:TextEntry("Position", "")
 	container.ang = container:TextEntry("Angles", "")
+	container.pos:SetUpdateOnType(true)
+	container.ang:SetUpdateOnType(true)
+
 	container.update = container:Button("Update", "")
 	container.update:SetTooltip("Update position and angle offsets")
 	container.phys = container:CheckBox("Use Physical Bone", "")
@@ -80,6 +83,20 @@ end
 
 local RED = Color(255, 0, 0)
 local GREEN = Color(0, 255, 0)
+
+---@param str string?
+---@return Vector
+local function stringToVector(str)
+	local split = string.Split(str or "", " ")
+	return Vector(tonumber(split[1]) or 0, tonumber(split[2]) or 0, tonumber(split[3]) or 0)
+end
+
+---@param str string?
+---@return Angle
+local function stringToAngle(str)
+	local split = string.Split(str or "", " ")
+	return Angle(tonumber(split[1]) or 0, tonumber(split[2]) or 0, tonumber(split[3]) or 0)
+end
 
 local highlighter = include("highlighter.lua")
 
@@ -140,6 +157,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	end
 
 	function data.update:DoClick()
+		-- print(data.data)
 		if data.data then
 			update(data.data, true)
 		end
@@ -167,6 +185,28 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 			updateLabel(data.data.outgoing, val)
 			data.data.id = val
 			update(data.data)
+		end
+	end
+
+	function data.ang:OnValueChange(newAng)
+		if filling then
+			return
+		end
+		if data.data then
+			data.data.ang = stringToAngle(newAng)
+			print(data.data.ang)
+			update(data.data, false)
+		end
+	end
+
+	function data.pos:OnValueChange(newPos)
+		if filling then
+			return
+		end
+		if data.data then
+			data.data.pos = stringToVector(newPos)
+			-- print(data.data.pos)
+			update(data.data, false)
 		end
 	end
 

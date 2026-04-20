@@ -3,16 +3,19 @@
 ---@generic T, U
 ---@alias Set<T, U> {[T]: U}
 
----@alias EntitySet Set<Entity, boolean>
+---@alias EntitySet Set<ArcEntity, boolean>
 
 ---@class OffsetData Offset of a physics bone with respect to its parent bone
 ---@field pos Vector?
 ---@field ang Angle?
 ---@field parent PhysObj?
 
+---@class ArcEntity: Entity
+---@field ragdollweld_constraint Entity
+
 ---@class ArcData
----@field entity Entity
----@field outgoing Entity
+---@field entity ArcEntity
+---@field outgoing ArcEntity
 ---@field incoming EntitySet All the entities connected to this entity
 ---@field pos Vector
 ---@field ang Angle

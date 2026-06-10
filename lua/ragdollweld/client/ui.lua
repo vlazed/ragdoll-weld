@@ -4,6 +4,8 @@ include("ragdollweld/client/derma/graph.lua")
 local helpers = include("ragdollweld/shared/helpers.lua")
 local getName = helpers.getEntityName
 
+local SAVE_PATH = "ragdollweld"
+
 local ui = {}
 
 ---Helper for DForm
@@ -36,11 +38,191 @@ local function entityExplorer(cPanel)
 	return container
 end
 
+---Source: https://github.com/vlazed/PenAkTools/blob/9f1d96e188be8639bc556ff4e14a32ca64ed6383/GARRYS%20MOD%20SCRIPTS/macroreplacementver2/lua/autorun/client/concommand_macro.lua#L606
+---Need more good custom preset vgui 😭
+---@param cPanel DForm|ControlPanel
+---@param savepath string
+---@return PresetSaver
+local function savePanel( cPanel, savepath )
+	---@class PresetSaver: DPanel
+	local base = vgui.Create( "DPanel" )
+	base:SetTall(30)
+	base:SetPaintBackground(false)
+	cPanel:AddItem(base)
+
+	base.box = vgui.Create("DComboBox", base)
+	base.box:SetPos(0, 5)
+
+	local function refreshList()
+		base.box:Clear()
+
+		local files = file.Find(savepath .. "/" .. "*.txt", "DATA")
+		for k, file in ipairs(files) do
+			file = string.sub(file, 1, -5)
+
+			base.box:AddChoice(file, file)
+		end
+	end
+
+	refreshList()
+
+	---@param data ArcData
+	function base:OnSelect(data)
+	end
+
+	function base.box:OnSelect(id, val)
+		local f = file.Read(savepath .. "/" .. val .. ".txt", "DATA")
+		local data = util.JSONToTable(f)
+		if not data then return end
+
+		return base:OnSelect(data)
+	end
+
+	---@return ArcData?
+	function base:OnSave()
+	end
+
+	base.butt = vgui.Create("DImageButton", base)
+	base.butt:SetSize(18, 18)
+	base.butt:SetImage("icon16/disk.png")
+	base.butt:SetTooltip("Save")
+
+	function base.butt:DoClick()
+		local savew = vgui.Create("DFrame")
+		savew:SetSize(200, 105)
+		savew:Center()
+		savew:MakePopup()
+		savew:DoModal()
+		savew:SetTitle("Save Preset")
+		savew:SetBackgroundBlur(true)
+
+		local wx, wy = savew:GetSize()
+
+		savew.label = vgui.Create("DLabel", savew)
+		savew.label:SetText("Enter preset name to be saved:")
+		savew.label:SizeToContents()
+		savew.label:SetPos(wx/2 - savew.label:GetWide()/2, 30)
+
+		savew.entry = vgui.Create("DTextEntry", savew)
+		savew.entry:SetSize(190, 20)
+		savew.entry:SetPos(5, 50)
+
+		savew.sbutt = vgui.Create("DButton", savew)
+		savew.sbutt:SetText("Save")
+		savew.sbutt:SetSize(60, 20)
+		savew.sbutt:SetPos(5, 76)
+		function savew.sbutt:DoClick()
+			local name = string.Trim(savew.entry:GetText())
+
+			if not file.IsDir( savepath, "DATA" ) then
+				file.CreateDir( savepath )
+			end
+
+			local data = base:OnSave()
+
+			if not data or not data.id then
+				notification.AddLegacy("Error: There must be valid data to save!", NOTIFY_ERROR, 5)
+				return
+			end
+
+			local json = util.TableToJSON( data )
+			file.Write( savepath .. "/" .. name .. ".txt", json )
+
+			notification.AddLegacy("Arc saved!", NOTIFY_GENERIC, 5)
+			surface.PlaySound("buttons/button14.wav")
+
+			refreshList()
+			savew:Close()
+		end
+
+		savew.cbutt = vgui.Create("DButton", savew)
+		savew.cbutt:SetText("Cancel")
+		savew.cbutt:SetSize(60, 20)
+		savew.cbutt:SetPos(wx - 65, 76)
+		function savew.cbutt:DoClick()
+			savew:Close()
+		end
+
+	end
+
+	base.editb = vgui.Create("DImageButton", base)
+	base.editb:SetSize(18, 18)
+	base.editb:SetImage("icon16/cross.png")
+	base.editb:SetTooltip("Delete Presets")
+
+	function base.editb:DoClick()
+		local frame = vgui.Create("DFrame")
+		local wx, wy = 300, 200
+		frame:SetSize(wx, wy)
+		frame:Center()
+		frame:MakePopup()
+		frame:DoModal()
+		frame:SetTitle("Weld Presets")
+		frame:SetBackgroundBlur(true)
+
+		function frame:OnClose()
+			refreshList()
+		end
+
+		frame.list = vgui.Create("DListView", frame)
+		frame.list:SetSize(150, wy - 25)
+		frame.list:SetPos(0, 25)
+		frame.list:AddColumn("Preset")
+		frame.list:SetMultiSelect(false)
+
+		local files = file.Find(savepath .. "*.txt", "DATA")
+		for k, file in ipairs(files) do
+			file = string.sub(file, 1, -5)
+
+			frame.list:AddLine(file)
+		end
+
+		frame.delete = vgui.Create("DButton", frame)
+		frame.delete:SetSize(70, 30)
+		frame.delete:SetText("Delete")
+		frame.delete:SetPos(190, 60)
+
+		function frame.delete:DoClick()
+			local selected, pnl = frame.list:GetSelectedLine()
+			if not selected then return end
+
+			local name = savepath .. "/" .. pnl:GetValue() .. ".txt"
+
+			if file.Exists(name, "DATA") then
+				file.Delete(name)
+			end
+			frame.list:RemoveLine(selected)
+		end
+
+		frame.exit = vgui.Create("DButton", frame)
+		frame.exit:SetSize(70, 30)
+		frame.exit:SetText("Close")
+		frame.exit:SetPos(190, 120)
+
+		function frame.exit:DoClick()
+			frame:Close()
+		end
+	end
+
+	function base:PerformLayout(width)
+
+		base.box:SetSize(width - 55, 20)
+
+		base.butt:SetPos(width - 45, 5)
+		base.editb:SetPos(width - 20, 5)
+
+	end
+
+	return base
+end
+
 ---@param cPanel DForm|ControlPanel
 ---@return EntityData
 local function dataDisplay(cPanel)
 	local container = makeCategory(cPanel, "Arc Data", "DForm")
 	---@cast container EntityData
+
+	container.preset = savePanel(container, SAVE_PATH)
 
 	---@diagnostic disable: assign-type-mismatch
 	---INFO: The DForm methods return Panel instead of their respective types
@@ -154,6 +336,19 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		net.WriteTable(newData)
 		net.WriteBool(updateClicked)
 		net.SendToServer()
+	end
+
+	function data.preset:OnSelect(d)
+		--Preserve outgoing / incoming entities
+		d.incoming = data.data.incoming
+		d.outgoing = data.data.outgoing
+		d.entity = data.data.entity
+
+		update(d, false)
+	end
+
+	function data.preset:OnSave()
+		return data.data
 	end
 
 	function data.update:DoClick()

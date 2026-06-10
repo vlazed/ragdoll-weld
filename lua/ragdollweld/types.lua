@@ -30,6 +30,7 @@
 ---@field search DTextEntry
 
 ---@class EntityData: DForm
+---@field preset PresetSaver
 ---@field data ArcData
 ---@field label DLabel
 ---@field pos DTextEntry

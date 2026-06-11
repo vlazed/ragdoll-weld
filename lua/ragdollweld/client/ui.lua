@@ -43,9 +43,9 @@ end
 ---@param cPanel DForm|ControlPanel
 ---@param savepath string
 ---@return PresetSaver
-local function savePanel( cPanel, savepath )
+local function savePanel(cPanel, savepath)
 	---@class PresetSaver: DPanel
-	local base = vgui.Create( "DPanel" )
+	local base = vgui.Create("DPanel")
 	base:SetTall(30)
 	base:SetPaintBackground(false)
 	cPanel:AddItem(base)
@@ -67,20 +67,20 @@ local function savePanel( cPanel, savepath )
 	refreshList()
 
 	---@param data ArcData
-	function base:OnSelect(data)
-	end
+	function base:OnSelect(data) end
 
 	function base.box:OnSelect(id, val)
 		local f = file.Read(savepath .. "/" .. val .. ".txt", "DATA")
 		local data = util.JSONToTable(f)
-		if not data then return end
+		if not data then
+			return
+		end
 
 		return base:OnSelect(data)
 	end
 
 	---@return ArcData?
-	function base:OnSave()
-	end
+	function base:OnSave() end
 
 	base.butt = vgui.Create("DImageButton", base)
 	base.butt:SetSize(18, 18)
@@ -101,7 +101,7 @@ local function savePanel( cPanel, savepath )
 		savew.label = vgui.Create("DLabel", savew)
 		savew.label:SetText("Enter preset name to be saved:")
 		savew.label:SizeToContents()
-		savew.label:SetPos(wx/2 - savew.label:GetWide()/2, 30)
+		savew.label:SetPos(wx / 2 - savew.label:GetWide() / 2, 30)
 
 		savew.entry = vgui.Create("DTextEntry", savew)
 		savew.entry:SetSize(190, 20)
@@ -114,8 +114,8 @@ local function savePanel( cPanel, savepath )
 		function savew.sbutt:DoClick()
 			local name = string.Trim(savew.entry:GetText())
 
-			if not file.IsDir( savepath, "DATA" ) then
-				file.CreateDir( savepath )
+			if not file.IsDir(savepath, "DATA") then
+				file.CreateDir(savepath)
 			end
 
 			local data = base:OnSave()
@@ -125,8 +125,8 @@ local function savePanel( cPanel, savepath )
 				return
 			end
 
-			local json = util.TableToJSON( data )
-			file.Write( savepath .. "/" .. name .. ".txt", json )
+			local json = util.TableToJSON(data)
+			file.Write(savepath .. "/" .. name .. ".txt", json)
 
 			notification.AddLegacy("Arc saved!", NOTIFY_GENERIC, 5)
 			surface.PlaySound("buttons/button14.wav")
@@ -142,7 +142,6 @@ local function savePanel( cPanel, savepath )
 		function savew.cbutt:DoClick()
 			savew:Close()
 		end
-
 	end
 
 	base.editb = vgui.Create("DImageButton", base)
@@ -184,7 +183,9 @@ local function savePanel( cPanel, savepath )
 
 		function frame.delete:DoClick()
 			local selected, pnl = frame.list:GetSelectedLine()
-			if not selected then return end
+			if not selected then
+				return
+			end
 
 			local name = savepath .. "/" .. pnl:GetValue() .. ".txt"
 
@@ -205,12 +206,10 @@ local function savePanel( cPanel, savepath )
 	end
 
 	function base:PerformLayout(width)
-
 		base.box:SetSize(width - 55, 20)
 
 		base.butt:SetPos(width - 45, 5)
 		base.editb:SetPos(width - 20, 5)
-
 	end
 
 	return base

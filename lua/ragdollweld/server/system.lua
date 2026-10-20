@@ -85,21 +85,13 @@ local function system()
 	state:updateCount()
 end
 
-local function thinkSystem()
-	if game.SinglePlayer() then
-		if isfunction(SMH.PlaybackManager.GetActivePlayback) and SMH.PlaybackManager.GetActivePlayback(Entity(1)) then
-			return
-		end
-	end
-	system()
-end
-hook.Remove("Think", "ragdollweld_system")
-hook.Add("Think", "ragdollweld_system", thinkSystem)
-
-local function smhPostFrameSystem(entities)
+local stopProcess = {}
+local function smhPostFrameSystem(entities, player)
 	if not updateAllConVar:GetBool() then
 		return
 	end
+
+	stopProcess[player] = true
 
 	for _, entity in ipairs(entities) do
 		local data = state.entities[entity:EntIndex()]
@@ -116,6 +108,17 @@ local function smhPostFrameSystem(entities)
 		end
 		state:updateCount()
 	end
+
+	stopProcess[player] = false
 end
 hook.Remove("SMH_PostFrameEntity", "ragdollweld_system")
 hook.Add("SMH_PostFrameEntity", "ragdollweld_system", smhPostFrameSystem)
+
+local function thinkSystem()
+	if game.SinglePlayer() and stopProcess[Entity(1)] then
+		return
+	end
+	system()
+end
+hook.Remove("Think", "ragdollweld_system")
+hook.Add("Think", "ragdollweld_system", thinkSystem)

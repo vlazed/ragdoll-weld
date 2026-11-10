@@ -55,16 +55,23 @@ local function getOffset(entity)
 	---@type OffsetData[]
 	local offsetData = {}
 	for i = 0, entity:GetPhysicsObjectCount() - 1 do
-		offsetData[i] = {}
 		local parentId = getPhysBoneParent(entity, i)
 		if parentId < 0 then
 			continue
 		end
 
 		local child, parent = entity:GetPhysicsObjectNum(i), entity:GetPhysicsObjectNum(parentId)
-		offsetData[i].pos, offsetData[i].ang =
-			WorldToLocal(child:GetPos(), child:GetAngles(), parent:GetPos(), parent:GetAngles())
-		offsetData[i].parent = parent
+		if not IsValid(child) or not IsValid(parent) then
+			continue
+		end
+
+		local pos, ang = WorldToLocal(child:GetPos(), child:GetAngles(), parent:GetPos(), parent:GetAngles())
+		offsetData[#offsetData + 1] = {
+			childId = i,
+			parentId = parentId,
+			pos = pos,
+			ang = ang,
+		}
 	end
 
 	return offsetData
@@ -110,6 +117,7 @@ local function addEntity(state, entity, outgoingArc, data)
 		ang = ang,
 		phys = phys,
 		id = id,
+		outgoingPhysId = phys and boneToPhysBone(outgoingArc, id) or nil,
 		updating = true,
 		offsetData = getOffset(entity),
 	}
@@ -175,6 +183,7 @@ function RagdollWeld.State:updateEntity(index, data, offsetUpdate)
 	arcData.phys = data.phys
 	arcData.updating = data.updating
 	arcData.id = data.id
+	arcData.outgoingPhysId = arcData.phys and boneToPhysBone(arcData.outgoing, arcData.id) or nil
 
 	if offsetUpdate then
 		arcData.offsetData = getOffset(arcData.entity)
